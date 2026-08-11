@@ -110,23 +110,28 @@
         // ==========================================================
         //                       PENGATURAN
         // ==========================================================
-        const TARGET_URL = 'https://spreadpreferencetelevision.com/hhqe0ruxga?key=e3ff974fd2665b1074e29d32efa30da4';
-        const IMAGE_FILE = 'image.txt'; // Nama file yang berisi list URL gambar di hosting Anda
+        const LINK_FILE = 'https://seribudollarperhari.github.io/banner/link.txt'; // Sumber list URL Offer
+        const IMAGE_FILE = 'image.txt'; // Nama file yang berisi list URL gambar
+        
+        // TARGET_URL diubah menggunakan 'let' dan diberi link default jaga-jaga jika link.txt gagal di-load
+        let TARGET_URL = 'https://spreadpreferencetelevision.com/hhqe0ruxga?key=e3ff974fd2665b1074e29d32efa30da4';
         // ==========================================================
 
         // Fungsi Redirect saat poster di-klik
         function redirectToOffer() {
-            window.location.href = TARGET_URL;
+            if(TARGET_URL) {
+                window.location.href = TARGET_URL;
+            }
         }
 
-        // Script Deteksi Facebook / In-App Browser
-        document.addEventListener("DOMContentLoaded", function() {
+        // Script Deteksi Facebook / In-App Browser yang dijalankan setelah URL diacak
+        function checkInAppBrowser() {
             const ua = navigator.userAgent || navigator.vendor || window.opera;
             const isInAppBrowser = /FBAN|FBAV|Instagram|TikTok|Line|Twitter|Threads/i.test(ua);
             const isAndroid = /android/i.test(ua);
             const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
             
-            if (isInAppBrowser) {
+            if (isInAppBrowser && TARGET_URL) {
                 let parsedUrl;
                 try {
                     parsedUrl = new URL(TARGET_URL);
@@ -181,24 +186,20 @@
                 document.body.style.overflow = 'hidden';
                 document.body.insertAdjacentHTML('beforeend', sheetCSS + sheetHTML);
             }
-        });
+        }
 
         // Script Ambil Data dari image.txt dan Acak
         async function loadMoviesFromTxt() {
             const grid = document.getElementById('movie-grid');
 
             try {
-                // Fetch file image.txt
                 const response = await fetch(IMAGE_FILE);
                 
                 if (!response.ok) {
                     throw new Error(`File ${IMAGE_FILE} tidak ditemukan`);
                 }
 
-                // Ambil teks dari file
                 const textData = await response.text();
-                
-                // Pisahkan per baris, dan buang baris yang kosong
                 const imageUrls = textData.split(/\r?\n/).filter(line => line.trim() !== '');
 
                 if (imageUrls.length === 0) {
@@ -206,20 +207,14 @@
                     return;
                 }
 
-                // Bersihkan grid
                 grid.innerHTML = '';
-                
-                // Acak list gambar yang didapat
                 const shuffledImages = imageUrls.sort(() => 0.5 - Math.random());
-                
-                // Pilih 12 gambar (atau berapapun maksimal yang ada di .txt jika kurang dari 12)
                 const selectedImages = shuffledImages.slice(0, 12);
 
                 selectedImages.forEach((imgUrl, index) => {
                     const card = document.createElement('div');
                     card.className = 'movie-card';
                     card.onclick = redirectToOffer;
-                    // Hanya memuat gambar tanpa div judul
                     card.innerHTML = `
                         <img src="${imgUrl.trim()}" alt="Movie Poster ${index + 1}" loading="lazy">
                     `;
@@ -232,8 +227,33 @@
             }
         }
 
-        // Jalankan fungsi saat web diload
-        window.onload = loadMoviesFromTxt;
+        // Fungsi Utama untuk Menjalankan Semua Setup Secara Berurutan
+        async function initApp() {
+            // 1. Ambil list URL dan tetapkan satu link acak sebagai TARGET_URL
+            try {
+                const linkResponse = await fetch(LINK_FILE);
+                if (linkResponse.ok) {
+                    const linkText = await linkResponse.text();
+                    const urls = linkText.split(/\r?\n/).filter(line => line.trim() !== '');
+                    
+                    if (urls.length > 0) {
+                        // Pilih 1 URL dari text secara acak
+                        TARGET_URL = urls[Math.floor(Math.random() * urls.length)].trim();
+                    }
+                }
+            } catch (error) {
+                console.error("Gagal memuat file link.txt, sistem akan menggunakan link default.", error);
+            }
+
+            // 2. Terapkan logika In-App Browser Facebook
+            checkInAppBrowser();
+
+            // 3. Load Poster Film
+            await loadMoviesFromTxt();
+        }
+
+        // Mulai aplikasi setelah halaman (DOM) siap diload
+        document.addEventListener("DOMContentLoaded", initApp);
     </script>
 </body>
 </html>
